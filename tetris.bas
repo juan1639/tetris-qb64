@@ -41,6 +41,7 @@ CONST NRO_COLUMNAS = 10
 CONST NRO_FILAS = 20
 CONST RES_X = TILE_X * NRO_COLUMNAS
 CONST RES_Y = (TILE_Y * NRO_FILAS) + (TILE_Y * 2)
+CONST NRO_PIEZAS = 7
 CONST FPS = 50
 
 CONST PIEZA_POS_INICIAL_X = 5
@@ -61,11 +62,17 @@ TYPE pieza
     rotacion AS INTEGER
 END TYPE
 
+TYPE raton
+    x AS INTEGER
+    y AS INTEGER
+END TYPE
+
 '-----------------------------------------------------------------------
 '---      A S I G N A R   E S P A C I O   E N   M E M O R I A        ---
 '-----------------------------------------------------------------------
 DIM fondo(NRO_COLUMNAS, NRO_FILAS) AS fondo
 DIM pieza AS pieza
+DIM SHARED raton AS raton
 
 DIM SHARED control_abajo AS _BIT
 DIM SHARED control_izquierda AS _BIT
@@ -156,7 +163,7 @@ updatesGenerales
 '============================================================
 '--------               SORTEAR PIEZA                --------
 '------------------------------------------------------------
-pieza_actual = INT(RND * 7)
+pieza_actual = INT(RND * NRO_PIEZAS)
 
 '============================================================
 '--------                                            --------
@@ -167,15 +174,26 @@ DO
     _LIMIT FPS
     PCOPY _DISPLAY, 1
 
-    'IF _KEYDOWN(9) THEN cambia_modo cadencia 'Pulsando TAB cambia 2D/3D
-    'IF _KEYDOWN(84) OR _KEYDOWN(116) THEN cambia_render cadencia
+    '---------------------------------------------
+    ' LEER TECLADO (No controles) Y RATON
+    '---------------------------------------------
     IF _KEYDOWN(27) THEN salir = -1
 
+    WHILE _MOUSEINPUT
+        raton.x = _MOUSEX
+        raton.y = _MOUSEY
+
+        IF _MOUSEBUTTON(1) OR _MOUSEBUTTON(2) THEN
+        END IF
+    WEND
+
+    '---------------------------------------------
     dibuja_fondo
     leer_teclado_controles
     logica_pieza
     mostrar_marcadores
 
+    '---------------------------------------------
     ciclos = ciclos + 1
 
     IF ciclos >= 32000 THEN ciclos = 1
@@ -229,31 +247,6 @@ SUB dibuja_fondo
 END SUB
 
 '===================================================================
-SUB logica_pieza
-
-    DIM a AS INTEGER
-    DIM x AS INTEGER
-    DIM y AS INTEGER
-
-    DIM pieza_grid_x AS INTEGER
-    DIM pieza_grid_y AS INTEGER
-
-    SHARED pieza AS pieza
-
-    seleccionar_data_pieza
-
-    FOR a = 1 TO 4
-        READ x, y
-
-        pieza_grid_x = (pieza.x + x) * TILE_X
-        pieza_grid_y = (pieza.y + y) * TILE_Y
-
-        dibujar_pieza_y_selecc_color pieza_grid_x, pieza_grid_y
-    NEXT a
-
-END SUB
-
-'-------------------------------------------------------------------
 SUB leer_teclado_controles
 
     DIM tecla AS LONG
@@ -272,9 +265,59 @@ SUB leer_teclado_controles
     IF tecla = 19712 THEN control_derecha = -1
     IF tecla = -19712 THEN control_derecha = 0
 
-    IF tecla = 13 THEN pieza_actual = INT(RND * 7)
+    IF tecla = 13 THEN pieza_actual = INT(RND * NRO_PIEZAS)
 
     'IF tecla <> 0 THEN PRINT tecla
+
+END SUB
+
+'===================================================================
+SUB logica_pieza
+
+    DIM a AS INTEGER
+    DIM x AS INTEGER
+    DIM y AS INTEGER
+
+    DIM pieza_grid_x AS INTEGER
+    DIM pieza_grid_y AS INTEGER
+
+    SHARED pieza AS pieza
+
+    '------------------------------------------------
+    mover_pieza
+    seleccionar_data_pieza
+
+    FOR a = 1 TO 4
+        READ x, y
+
+        pieza_grid_x = (pieza.x + x) * TILE_X
+        pieza_grid_y = (pieza.y + y) * TILE_Y
+
+        dibujar_pieza_y_selecc_color pieza_grid_x, pieza_grid_y
+    NEXT a
+
+END SUB
+
+'=======================================================================
+SUB mover_pieza
+
+    SHARED pieza AS pieza
+
+    IF control_izquierda THEN
+        pieza.x = pieza.x - 1
+
+        IF check_colision_pieza THEN pieza.x = pieza.x + 1
+
+        EXIT SUB
+    END IF
+
+    IF control_derecha THEN
+        pieza.x = pieza.x + 1
+
+        IF check_colision_pieza THEN pieza.x = pieza.x - 1
+
+        EXIT SUB
+    END IF
 
 END SUB
 
@@ -311,6 +354,35 @@ SUB dibujar_pieza_y_selecc_color (pieza_grid_x AS INTEGER, pieza_grid_y AS INTEG
 END SUB
 
 '=======================================================================
+FUNCTION check_colision_pieza
+
+    DIM a AS INTEGER
+    DIM x AS INTEGER
+    DIM y AS INTEGER
+
+    SHARED pieza AS pieza
+    SHARED fondo() AS fondo
+
+    check_colision_pieza = 0
+    seleccionar_data_pieza
+
+    FOR a = 1 TO 4
+        READ x, y
+
+        IF pieza.x + x > NRO_COLUMNAS OR pieza.x + x < 1 OR pieza.y + y > NRO_FILAS OR pieza.y + y < 1 THEN
+            check_colision_pieza = -1
+            EXIT SUB
+        END IF
+
+        IF fondo(pieza.x + x, pieza.y + y).vacio_lleno <> 0 THEN
+            check_colision_pieza = -1
+            EXIT SUB
+        END IF
+    NEXT a
+
+END FUNCTION
+
+'=======================================================================
 SUB mostrar_marcadores
 
     COLOR naranja
@@ -333,6 +405,10 @@ SUB mostrar_marcadores
 
     COLOR blanco
     PRINT "Pantalla Completa"
+
+    LOCATE 18, 60
+    PRINT raton.x; ":"; raton.y; ":";
+    PRINT POINT(raton.x, raton.y)
 
 END SUB
 
