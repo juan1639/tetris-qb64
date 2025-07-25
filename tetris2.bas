@@ -8,7 +8,8 @@
 '---                       C O N S T A N T E S                           ---
 '---------------------------------------------------------------------------
 CONST blanco = _RGB32(245, 245, 245)
-CONST gris_fondo_ui = _RGB32(112, 112, 112)
+CONST gris_fondo_ui = _RGB32(99, 99, 99)
+CONST gris_borde = _RGB32(132, 132, 132)
 CONST negro_vacio = _RGB32(30, 30, 30)
 CONST rastro_pieza = _RGB32(133, 128, 11)
 
@@ -33,7 +34,7 @@ CONST rosa_2 = _RGB32(150, 0, 133)
 CONST marron = _RGB32(128, 100, 50)
 CONST marron_2 = _RGB32(111, 78, 55)
 
-CONST naranja = _RGB32(255, 150, 11)
+CONST amarillo_ui = _RGB32(255, 255, 12)
 
 CONST TILE_X = 30
 CONST TILE_Y = 30
@@ -41,6 +42,7 @@ CONST NRO_COLUMNAS = 10
 CONST NRO_FILAS = 20
 CONST RES_X = TILE_X * NRO_COLUMNAS
 CONST RES_Y = (TILE_Y * NRO_FILAS) + (TILE_Y * 2)
+CONST NRO_PIEZAS = 7
 CONST FPS = 50
 
 CONST PIEZA_POS_INICIAL_X = 5
@@ -61,11 +63,17 @@ TYPE pieza
     rotacion AS INTEGER
 END TYPE
 
+TYPE raton
+    x AS INTEGER
+    y AS INTEGER
+END TYPE
+
 '-----------------------------------------------------------------------
 '---      A S I G N A R   E S P A C I O   E N   M E M O R I A        ---
 '-----------------------------------------------------------------------
 DIM fondo(NRO_COLUMNAS, NRO_FILAS) AS fondo
 DIM pieza AS pieza
+DIM SHARED raton AS raton
 
 DIM SHARED control_abajo AS _BIT
 DIM SHARED control_izquierda AS _BIT
@@ -78,6 +86,7 @@ DIM SHARED record AS INTEGER
 
 DIM a AS INTEGER
 DIM b AS INTEGER
+DIM SHARED show_valores AS _BIT
 DIM ciclos AS INTEGER
 DIM cadencia AS INTEGER
 DIM gameover AS _BIT
@@ -156,7 +165,7 @@ updatesGenerales
 '============================================================
 '--------               SORTEAR PIEZA                --------
 '------------------------------------------------------------
-pieza_actual = INT(RND * 7)
+pieza_actual = INT(RND * NRO_PIEZAS)
 
 '============================================================
 '--------                                            --------
@@ -167,15 +176,27 @@ DO
     _LIMIT FPS
     PCOPY _DISPLAY, 1
 
-    'IF _KEYDOWN(9) THEN cambia_modo cadencia 'Pulsando TAB cambia 2D/3D
-    'IF _KEYDOWN(84) OR _KEYDOWN(116) THEN cambia_render cadencia
+    '---------------------------------------------
+    ' LEER TECLADO (Esc) Y RATON
+    '---------------------------------------------
     IF _KEYDOWN(27) THEN salir = -1
+    IF _KEYDOWN(9) THEN show_valores = show_valores + 1
 
+    WHILE _MOUSEINPUT
+        raton.x = _MOUSEX
+        raton.y = _MOUSEY
+
+        IF _MOUSEBUTTON(1) OR _MOUSEBUTTON(2) THEN
+        END IF
+    WEND
+
+    '---------------------------------------------
     dibuja_fondo
     leer_teclado_controles
     logica_pieza
     mostrar_marcadores
 
+    '---------------------------------------------
     ciclos = ciclos + 1
 
     IF ciclos >= 32000 THEN ciclos = 1
@@ -207,10 +228,15 @@ SUB dibuja_fondo
 
     SHARED fondo() AS fondo
 
+    '----------- ADORNOS ZONA PIEZAS (BORDES Y ZONA SUPERIOR) --------------
     LINE (TILE_X, 0)-(TILE_X * (NRO_COLUMNAS + 1), TILE_Y), negro_vacio, BF
 
+    LINE (TILE_X - 2, 0)-(TILE_X - 1, (TILE_Y * (NRO_FILAS + 1)) + 1), gris_borde, BF
+    LINE -((TILE_X * (NRO_COLUMNAS + 1)) + 2, (TILE_Y * (NRO_FILAS + 1)) + 2), gris_borde, BF
+    LINE -((TILE_X * (NRO_COLUMNAS + 1)) + 1, 0), gris_borde, BF
     'fondo(1, 20).vacio_lleno = 5
 
+    '-------------------- DIBUJA ZONA PIEZAS (FONDO) -----------------------
     FOR y = 1 TO NRO_FILAS
         FOR x = 1 TO NRO_COLUMNAS
 
@@ -229,31 +255,6 @@ SUB dibuja_fondo
 END SUB
 
 '===================================================================
-SUB logica_pieza
-
-    DIM a AS INTEGER
-    DIM x AS INTEGER
-    DIM y AS INTEGER
-
-    DIM pieza_grid_x AS INTEGER
-    DIM pieza_grid_y AS INTEGER
-
-    SHARED pieza AS pieza
-
-    seleccionar_data_pieza
-
-    FOR a = 1 TO 4
-        READ x, y
-
-        pieza_grid_x = (pieza.x + x) * TILE_X
-        pieza_grid_y = (pieza.y + y) * TILE_Y
-
-        dibujar_pieza_y_selecc_color pieza_grid_x, pieza_grid_y
-    NEXT a
-
-END SUB
-
-'-------------------------------------------------------------------
 SUB leer_teclado_controles
 
     DIM tecla AS LONG
@@ -272,9 +273,59 @@ SUB leer_teclado_controles
     IF tecla = 19712 THEN control_derecha = -1
     IF tecla = -19712 THEN control_derecha = 0
 
-    IF tecla = 13 THEN pieza_actual = INT(RND * 7)
+    IF tecla = 13 THEN pieza_actual = INT(RND * NRO_PIEZAS)
 
     'IF tecla <> 0 THEN PRINT tecla
+
+END SUB
+
+'===================================================================
+SUB logica_pieza
+
+    DIM a AS INTEGER
+    DIM x AS INTEGER
+    DIM y AS INTEGER
+
+    DIM pieza_grid_x AS INTEGER
+    DIM pieza_grid_y AS INTEGER
+
+    SHARED pieza AS pieza
+
+    '------------------------------------------------
+    mover_pieza
+    seleccionar_data_pieza
+
+    FOR a = 1 TO 4
+        READ x, y
+
+        pieza_grid_x = (pieza.x + x) * TILE_X
+        pieza_grid_y = (pieza.y + y) * TILE_Y
+
+        dibujar_pieza_y_selecc_color pieza_grid_x, pieza_grid_y
+    NEXT a
+
+END SUB
+
+'=======================================================================
+SUB mover_pieza
+
+    SHARED pieza AS pieza
+
+    IF control_izquierda THEN
+        pieza.x = pieza.x - 1
+
+        IF check_colision_pieza THEN pieza.x = pieza.x + 1
+
+        EXIT SUB
+    END IF
+
+    IF control_derecha THEN
+        pieza.x = pieza.x + 1
+
+        IF check_colision_pieza THEN pieza.x = pieza.x - 1
+
+        EXIT SUB
+    END IF
 
 END SUB
 
@@ -297,42 +348,83 @@ END SUB
 '=======================================================================
 SUB dibujar_pieza_y_selecc_color (pieza_grid_x AS INTEGER, pieza_grid_y AS INTEGER)
 
+    DIM x AS INTEGER
+    DIM y AS INTEGER
+
+    x = pieza_grid_x
+    y = pieza_grid_y
+
     SELECT CASE pieza_actual
-        CASE 0: LINE (pieza_grid_x, pieza_grid_y)-(pieza_grid_x + TILE_X, pieza_grid_y + TILE_Y), marron, BF
-        CASE 1: LINE (pieza_grid_x, pieza_grid_y)-(pieza_grid_x + TILE_X, pieza_grid_y + TILE_Y), rosa, BF
-        CASE 2: LINE (pieza_grid_x, pieza_grid_y)-(pieza_grid_x + TILE_X, pieza_grid_y + TILE_Y), amarillo, BF
-        CASE 3: LINE (pieza_grid_x, pieza_grid_y)-(pieza_grid_x + TILE_X, pieza_grid_y + TILE_Y), azul_cel, BF
-        CASE 4: LINE (pieza_grid_x, pieza_grid_y)-(pieza_grid_x + TILE_X, pieza_grid_y + TILE_Y), azul_osc, BF
-        CASE 5: LINE (pieza_grid_x, pieza_grid_y)-(pieza_grid_x + TILE_X, pieza_grid_y + TILE_Y), rojo, BF
-        CASE 6: LINE (pieza_grid_x, pieza_grid_y)-(pieza_grid_x + TILE_X, pieza_grid_y + TILE_Y), verde, BF
-        CASE ELSE: LINE (pieza_grid_x, pieza_grid_y)-(pieza_grid_x + TILE_X, pieza_grid_y + TILE_Y), rojo, BF
+        CASE 0: LINE (x, y)-(x + TILE_X, y + TILE_Y), marron, BF
+        CASE 1: LINE (x, y)-(x + TILE_X, y + TILE_Y), rosa, BF
+        CASE 2: LINE (x, y)-(x + TILE_X, y + TILE_Y), amarillo, BF
+        CASE 3: LINE (x, y)-(x + TILE_X, y + TILE_Y), azul_cel, BF
+        CASE 4: LINE (x, y)-(x + TILE_X, y + TILE_Y), azul_osc, BF
+        CASE 5: LINE (x, y)-(x + TILE_X, y + TILE_Y), rojo, BF
+        CASE 6: LINE (x, y)-(x + TILE_X, y + TILE_Y), verde, BF
+        CASE ELSE: LINE (x, y)-(x + TILE_X, y + TILE_Y), rojo, BF
     END SELECT
 
 END SUB
 
 '=======================================================================
+FUNCTION check_colision_pieza
+
+    DIM a AS INTEGER
+    DIM x AS INTEGER
+    DIM y AS INTEGER
+
+    SHARED pieza AS pieza
+    SHARED fondo() AS fondo
+
+    check_colision_pieza = 0
+    seleccionar_data_pieza
+
+    FOR a = 1 TO 4
+        READ x, y
+
+        IF pieza.x + x > NRO_COLUMNAS OR pieza.x + x < 1 OR pieza.y + y > NRO_FILAS OR pieza.y + y < 1 THEN
+            check_colision_pieza = -1
+            EXIT SUB
+        END IF
+
+        IF fondo(pieza.x + x, pieza.y + y).vacio_lleno <> 0 THEN
+            check_colision_pieza = -1
+            EXIT SUB
+        END IF
+    NEXT a
+
+END FUNCTION
+
+'=======================================================================
 SUB mostrar_marcadores
 
-    COLOR naranja
+    COLOR amarillo_ui
     LOCATE 3, 50
     PRINT " Score:   ";
 
     COLOR blanco
     PRINT USING "###"; score
 
-    COLOR naranja
+    COLOR amarillo_ui
     LOCATE 6, 50
     PRINT " Record:  ";
 
     COLOR blanco
     PRINT USING "###"; record
 
-    COLOR amarillo
+    COLOR amarillo_ui
     LOCATE 10, 50
     PRINT " Alt+ENTER: ";
 
     COLOR blanco
     PRINT "Pantalla Completa"
+
+    IF show_valores / 2 <> INT(show_valores / 2) THEN
+        LOCATE 18, 60
+        PRINT raton.x; ":"; raton.y; ":";
+        PRINT POINT(raton.x, raton.y)
+    END IF
 
 END SUB
 
@@ -357,6 +449,7 @@ SUB updatesGenerales
     SHARED pieza AS pieza
     SHARED fondo() AS fondo
 
+    show_valores = 0
     ciclos = 0
     cadencia = 0
     gameover = 0
