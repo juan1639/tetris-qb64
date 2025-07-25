@@ -10,6 +10,7 @@
 CONST blanco = _RGB32(245, 245, 245)
 CONST gris_fondo_ui = _RGB32(99, 99, 99)
 CONST gris_borde = _RGB32(132, 132, 132)
+CONST gris_oscuro = _RGB32(59, 59, 59)
 CONST negro_vacio = _RGB32(30, 30, 30)
 CONST rastro_pieza = _RGB32(133, 128, 11)
 
@@ -43,8 +44,8 @@ CONST NRO_FILAS = 20
 CONST RES_X = TILE_X * NRO_COLUMNAS
 CONST RES_Y = (TILE_Y * NRO_FILAS) + (TILE_Y * 2)
 CONST NRO_PIEZAS = 7
-CONST CADENCIA_PULSACION = 12
-CONST FPS = 50
+CONST CADENCIA_PULSACION = 7
+CONST FPS = 60
 
 CONST PIEZA_POS_INICIAL_X = 5
 CONST PIEZA_POS_INICIAL_Y = 2
@@ -82,6 +83,7 @@ DIM SHARED control_derecha AS _BIT
 DIM SHARED control_rotar AS _BIT
 
 DIM SHARED pieza_actual AS INTEGER
+DIM SHARED pieza_siguiente AS INTEGER
 DIM SHARED score AS INTEGER
 DIM SHARED record AS INTEGER
 
@@ -90,6 +92,7 @@ DIM b AS INTEGER
 DIM SHARED show_valores AS _BIT
 DIM ciclos AS INTEGER
 DIM SHARED cadencia AS INTEGER
+DIM SHARED cadencia_rotacion AS INTEGER
 DIM gameover AS _BIT
 DIM salir AS _BIT
 
@@ -208,50 +211,57 @@ LOOP UNTIL _KEYDOWN(13) OR _KEYDOWN(32)
 _SNDSTOP musica_intro
 _SNDPLAY musica_tetris
 
+pieza_siguiente = INT(RND * NRO_PIEZAS)
+
 '============================================================
 '--------               SORTEAR PIEZA                --------
 '------------------------------------------------------------
-pieza_actual = INT(RND * NRO_PIEZAS)
-
-'============================================================
-'--------                                            --------
-'--------      B U C L E   P R I N C I P A L         --------
-'--------                                            --------
-'============================================================
 DO
-    _LIMIT FPS
-    PCOPY _DISPLAY, 1
+    pieza_actual = pieza_siguiente
+    pieza_siguiente = INT(RND * NRO_PIEZAS)
 
-    '---------------------------------------------
-    ' LEER TECLADO (ESC, TAB) Y RATON
-    '---------------------------------------------
-    IF _KEYDOWN(27) THEN salir = -1
-    IF _KEYDOWN(9) THEN show_valores = show_valores + 1
+    '============================================================
+    '--------                                            --------
+    '--------      B U C L E   P R I N C I P A L         --------
+    '--------                                            --------
+    '============================================================
+    DO
+        _LIMIT FPS
+        PCOPY _DISPLAY, 1
 
-    WHILE _MOUSEINPUT
-        raton.x = _MOUSEX
-        raton.y = _MOUSEY
+        '---------------------------------------------
+        ' LEER TECLADO (ESC, TAB) Y RATON
+        '---------------------------------------------
+        IF _KEYDOWN(27) THEN salir = -1
+        IF _KEYDOWN(9) THEN show_valores = show_valores + 1
 
-        IF _MOUSEBUTTON(1) OR _MOUSEBUTTON(2) THEN
-        END IF
-    WEND
+        WHILE _MOUSEINPUT
+            raton.x = _MOUSEX
+            raton.y = _MOUSEY
 
-    '------------ LLAMADAS A SUBS -----------------
-    dibuja_fondo
-    leer_teclado_controles
-    logica_pieza
-    mostrar_marcadores
+            IF _MOUSEBUTTON(1) OR _MOUSEBUTTON(2) THEN
+            END IF
+        WEND
 
-    '-------------- CONTADORES -------------------
-    ciclos = ciclos + 1
+        '------------ LLAMADAS A SUBS -----------------
+        dibuja_fondo
+        leer_teclado_controles
+        logica_pieza
+        mostrar_marcadores
 
-    IF ciclos >= 32000 THEN ciclos = 1
-    IF cadencia > 0 THEN cadencia = cadencia - 1
+        '-------------- CONTADORES -------------------
+        ciclos = ciclos + 1
 
-    _DISPLAY
-    PCOPY 1, _DISPLAY
+        IF ciclos >= 32000 THEN ciclos = 1
+        IF cadencia > 0 THEN cadencia = cadencia - 1
+        IF cadencia_rotacion > 0 THEN cadencia_rotacion = cadencia_rotacion - 1
 
-LOOP UNTIL gameover OR salir
+        _DISPLAY
+        PCOPY 1, _DISPLAY
+
+    LOOP UNTIL gameover OR salir
+
+LOOP UNTIL salir
 
 '===================================================================
 '---                   F I N   P R O G R A M A                   ---
@@ -275,15 +285,15 @@ SUB dibuja_fondo
     SHARED fondo() AS fondo
 
     '----------- ADORNOS ZONA PIEZAS (BORDES Y ZONA SUPERIOR) --------------
-    LINE (TILE_X, 0)-(TILE_X * (NRO_COLUMNAS + 1), TILE_Y), negro_vacio, BF
+    'LINE (TILE_X, 0)-(TILE_X * (NRO_COLUMNAS + 1), TILE_Y), negro_vacio, BF
 
-    LINE (TILE_X - 2, 0)-(TILE_X - 1, (TILE_Y * (NRO_FILAS + 1)) + 1), gris_borde, BF
-    LINE -((TILE_X * (NRO_COLUMNAS + 1)) + 2, (TILE_Y * (NRO_FILAS + 1)) + 2), gris_borde, BF
+    LINE (TILE_X - 3, 0)-(TILE_X - 1, (TILE_Y * (NRO_FILAS + 1)) + 1), gris_borde, BF
+    LINE -((TILE_X * (NRO_COLUMNAS + 1)) + 3, (TILE_Y * (NRO_FILAS + 1)) + 3), gris_borde, BF
     LINE -((TILE_X * (NRO_COLUMNAS + 1)) + 1, 0), gris_borde, BF
     'fondo(1, 20).vacio_lleno = 5
 
     '-------------------- DIBUJA ZONA PIEZAS (FONDO) -----------------------
-    FOR y = 1 TO NRO_FILAS
+    FOR y = 0 TO NRO_FILAS
         FOR x = 1 TO NRO_COLUMNAS
 
             fondo_grid_x = x * TILE_X
@@ -293,6 +303,7 @@ SUB dibuja_fondo
                 LINE (fondo_grid_x, fondo_grid_y)-(fondo_grid_x + TILE_X, fondo_grid_y + TILE_Y), rastro_pieza, BF
             ELSE
                 LINE (fondo_grid_x, fondo_grid_y)-(fondo_grid_x + TILE_X, fondo_grid_y + TILE_Y), negro_vacio, BF
+                LINE (fondo_grid_x, fondo_grid_y)-(fondo_grid_x + TILE_X, fondo_grid_y + TILE_Y), gris_oscuro, B
             END IF
 
         NEXT x
@@ -393,11 +404,12 @@ SUB rotar_pieza
 
     SHARED pieza AS pieza
 
-    IF cadencia > 0 THEN EXIT SUB
+    IF cadencia_rotacion > 0 THEN EXIT SUB
 
     IF control_rotar THEN
 
-        cadencia = CADENCIA_PULSACION
+        cadencia_rotacion = CADENCIA_PULSACION
+
         backup_rotacion = pieza.rotacion
         pieza.rotacion = pieza.rotacion + 1
 
@@ -463,7 +475,7 @@ FUNCTION check_colision_pieza
     FOR a = 1 TO 4
         READ x, y
 
-        IF pieza.x + x > NRO_COLUMNAS OR pieza.x + x < 1 OR pieza.y + y > NRO_FILAS OR pieza.y + y < 1 THEN
+        IF pieza.x + x > NRO_COLUMNAS OR pieza.x + x < 1 OR pieza.y + y > NRO_FILAS OR pieza.y + y < 0 THEN
             check_colision_pieza = -1
             EXIT SUB
         END IF
