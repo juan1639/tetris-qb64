@@ -93,6 +93,12 @@ DIM SHARED cadencia AS INTEGER
 DIM gameover AS _BIT
 DIM salir AS _BIT
 
+DIM musica_intro AS LONG
+DIM musica_tetris AS LONG
+DIM sonido_num_key AS LONG
+DIM sonido_key AS LONG
+DIM sonido_gameover AS LONG
+
 '====================================================================================
 '---            D A T A   P I E Z A S  (Y ROTACIONES)                             ---
 '------------------------------------------------------------------------------------
@@ -160,8 +166,47 @@ RANDOMIZE TIMER
 CLS
 LINE (0, 0)-(RES_X * 3, RES_Y), gris_fondo_ui, BF
 
-'updatesSonidos
+updatesSonidos
 updatesGenerales
+
+'============================================================
+'--------            P R E  -  J U E G O             --------
+'============================================================
+_SNDPLAY musica_intro
+
+DO
+    _LIMIT FPS
+    PCOPY _DISPLAY, 1
+
+    IF _KEYDOWN(27) THEN BEEP: SYSTEM
+
+    WHILE _MOUSEINPUT
+        raton.x = _MOUSEX
+        raton.y = _MOUSEY
+
+        IF _MOUSEBUTTON(1) OR _MOUSEBUTTON(2) THEN
+        END IF
+    WEND
+
+    dibuja_fondo
+
+    LOCATE 12, 12
+    COLOR amarillo_ui
+    PRINT " T E T R 1 S   C L O N "
+    LOCATE 20, 10
+    COLOR blanco
+    PRINT "  Pulse ENTER para comenzar"
+
+    ciclos = ciclos + 1
+    IF ciclos >= 32000 THEN ciclos = 1
+
+    _DISPLAY
+    PCOPY 1, _DISPLAY
+
+LOOP UNTIL _KEYDOWN(13) OR _KEYDOWN(32)
+
+_SNDSTOP musica_intro
+_SNDPLAY musica_tetris
 
 '============================================================
 '--------               SORTEAR PIEZA                --------
@@ -473,6 +518,23 @@ SUB soniquete (uno AS INTEGER, dos AS INTEGER)
     FOR a = uno TO dos STEP 50
         SOUND a, 0.2
     NEXT a
+
+END SUB
+
+'===================================================================
+SUB updatesSonidos
+
+    SHARED musica_intro AS LONG
+    SHARED musica_tetris AS LONG
+    SHARED sonido_num_key AS LONG
+    SHARED sonido_key AS LONG
+    SHARED sonido_gameover AS LONG
+
+    musica_intro = _SNDOPEN("tetris-theme-korobeiniki.wav")
+    musica_tetris = _SNDOPEN("russia-tetris-game-puzzle.wav")
+    sonido_num_key = _SNDOPEN("numkey.wav")
+    sonido_key = _SNDOPEN("key.wav")
+    sonido_gameover = _SNDOPEN("gameover.wav")
 
 END SUB
 
