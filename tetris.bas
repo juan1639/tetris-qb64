@@ -1,6 +1,6 @@
 '---------------------------------------------------------------------------
 '---                                                                     ---
-'---                       T E T R 1 S - C L O N                         ---
+'---                     T E T R 1 S  -  C L O N                         ---
 '---                                                                     ---
 '---                 Programado por: Juan Eguia, 2025                    ---
 '---                                                                     ---
@@ -43,6 +43,7 @@ CONST NRO_FILAS = 20
 CONST RES_X = TILE_X * NRO_COLUMNAS
 CONST RES_Y = (TILE_Y * NRO_FILAS) + (TILE_Y * 2)
 CONST NRO_PIEZAS = 7
+CONST CADENCIA_PULSACION = 12
 CONST FPS = 50
 
 CONST PIEZA_POS_INICIAL_X = 5
@@ -88,7 +89,7 @@ DIM a AS INTEGER
 DIM b AS INTEGER
 DIM SHARED show_valores AS _BIT
 DIM ciclos AS INTEGER
-DIM cadencia AS INTEGER
+DIM SHARED cadencia AS INTEGER
 DIM gameover AS _BIT
 DIM salir AS _BIT
 
@@ -177,7 +178,7 @@ DO
     PCOPY _DISPLAY, 1
 
     '---------------------------------------------
-    ' LEER TECLADO (Esc) Y RATON
+    ' LEER TECLADO (ESC, TAB) Y RATON
     '---------------------------------------------
     IF _KEYDOWN(27) THEN salir = -1
     IF _KEYDOWN(9) THEN show_valores = show_valores + 1
@@ -190,13 +191,13 @@ DO
         END IF
     WEND
 
-    '---------------------------------------------
+    '------------ LLAMADAS A SUBS -----------------
     dibuja_fondo
     leer_teclado_controles
     logica_pieza
     mostrar_marcadores
 
-    '---------------------------------------------
+    '-------------- CONTADORES -------------------
     ciclos = ciclos + 1
 
     IF ciclos >= 32000 THEN ciclos = 1
@@ -261,8 +262,8 @@ SUB leer_teclado_controles
 
     tecla = _KEYHIT
 
-    'IF tecla = 18432 THEN control_rotar = -1
-    'IF tecla = -18432 THEN control_rotar = 0
+    IF tecla = 32 THEN control_rotar = -1
+    IF tecla = -32 THEN control_rotar = 0
 
     IF tecla = 20480 THEN control_abajo = -1
     IF tecla = -20480 THEN control_abajo = 0
@@ -273,7 +274,9 @@ SUB leer_teclado_controles
     IF tecla = 19712 THEN control_derecha = -1
     IF tecla = -19712 THEN control_derecha = 0
 
-    IF tecla = 13 THEN pieza_actual = INT(RND * NRO_PIEZAS)
+    IF tecla = 13 THEN
+        pieza_actual = INT(RND * NRO_PIEZAS)
+    END IF
 
     'IF tecla <> 0 THEN PRINT tecla
 
@@ -293,8 +296,15 @@ SUB logica_pieza
 
     '------------------------------------------------
     mover_pieza
+    rotar_pieza
     seleccionar_data_pieza
 
+    ' SELECCIONAR ROTACION (IR HASTA EL DATA CORRESPONDIENTE):
+    FOR a = 0 TO (pieza.rotacion * 4) - 1
+        READ x, y
+    NEXT a
+
+    '-------------- DIBUJAR LA PIEZA ----------------
     FOR a = 1 TO 4
         READ x, y
 
@@ -311,7 +321,10 @@ SUB mover_pieza
 
     SHARED pieza AS pieza
 
+    IF cadencia > 0 THEN EXIT SUB
+
     IF control_izquierda THEN
+        cadencia = CADENCIA_PULSACION
         pieza.x = pieza.x - 1
 
         IF check_colision_pieza THEN pieza.x = pieza.x + 1
@@ -320,11 +333,33 @@ SUB mover_pieza
     END IF
 
     IF control_derecha THEN
+        cadencia = CADENCIA_PULSACION
         pieza.x = pieza.x + 1
 
         IF check_colision_pieza THEN pieza.x = pieza.x - 1
 
         EXIT SUB
+    END IF
+
+END SUB
+
+'=======================================================================
+SUB rotar_pieza
+
+    SHARED pieza AS pieza
+
+    IF cadencia > 0 THEN EXIT SUB
+
+    IF control_rotar THEN
+
+        cadencia = CADENCIA_PULSACION
+        backup_rotacion = pieza.rotacion
+        pieza.rotacion = pieza.rotacion + 1
+
+        IF pieza.rotacion >= 4 THEN pieza.rotacion = 0
+
+        IF check_colision_pieza THEN pieza.rotacion = backup_rotacion
+
     END IF
 
 END SUB
@@ -424,6 +459,9 @@ SUB mostrar_marcadores
         LOCATE 18, 60
         PRINT raton.x; ":"; raton.y; ":";
         PRINT POINT(raton.x, raton.y)
+
+        LOCATE 20, 60
+        PRINT "Cadencia: "; cadencia
     END IF
 
 END SUB
